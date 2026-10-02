@@ -1,0 +1,28 @@
+import Foundation
+
+let directory = FileManager.default.temporaryDirectory.appendingPathComponent("eten26-settings-test-" + UUID().uuidString)
+defer { try? FileManager.default.removeItem(at: directory) }
+let store = SettingsStore(directory: directory)
+assert(store.load().isEmpty)
+try store.save(["layout": "ETen26", "candidate_keys_count": 9, "trad_mode": true,
+                "user_phrases": "你好 ㄋㄧˇ-ㄏㄠˇ", "excluded_phrases": "泥 ㄋㄧˇ"])
+let restored = SettingsStore(directory: directory).load()
+assert(restored["layout"] as? String == "ETen26")
+assert(restored["candidate_keys_count"] as? Int == 9)
+assert(restored["trad_mode"] as? Bool == true)
+assert(restored["user_phrases"] as? String == "你好 ㄋㄧˇ-ㄏㄠˇ")
+assert(restored["excluded_phrases"] as? String == "泥 ㄋㄧˇ")
+let attributes = try FileManager.default.attributesOfItem(atPath: store.fileURL.path)
+assert((attributes[.posixPermissions] as? NSNumber)?.intValue == 0o600)
+try Data("not JSON".utf8).write(to: store.fileURL)
+assert(store.load().isEmpty)
+assert(store.recoveryNotice != nil)
+assert(!FileManager.default.fileExists(atPath: store.fileURL.path))
+let backups = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+assert(backups.count == 1)
+let backupText = try String(contentsOf: backups[0], encoding: .utf8)
+assert(backupText == "not JSON")
+try store.save(["layout": "ETen26"])
+assert(store.recoveryNotice == nil)
+assert(store.load()["layout"] as? String == "ETen26")
+print("Settings store: restart roundtrip, Unicode dictionaries, permissions, damaged-file backup and recovery passed")

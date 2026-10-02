@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<title>便箋送回相容性測試</title>
+<style>
+body { font: 16px system-ui; max-width: 650px; margin: 30px auto; padding: 20px; }
+textarea, [contenteditable] { border: 1px solid #888; padding: 12px; min-height: 90px; width: 100%; box-sizing: border-box; white-space: pre-wrap; }
+section { margin: 25px 0; } output { display: block; margin: 10px 0; }
+</style>
+<h1>便箋送回相容性測試</h1>
+<p>這是本機測試頁，沒有送出按鈕，也不會傳送內容。</p>
+<section>
+<label for="plain">普通文字區</label>
+<textarea id="plain">前段🙂後段</textarea>
+</section>
+<section>
+<label id="rich-label">網頁式對話輸入框</label>
+<div id="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="rich-label"><p>前段🙂後段</p></div>
+</section>
+<output id="events" aria-live="polite">貼上次數：0；輸入次數：0</output>
+<script>
+let pastes = 0, inputs = 0;
+for (const id of ['plain', 'rich']) {
+  const field = document.getElementById(id);
+  for (const name of ['paste', 'input']) field.addEventListener(name, () => {
+    if (name === 'paste') pastes++; else inputs++;
+    document.getElementById('events').textContent = `貼上次數：${pastes}；輸入次數：${inputs}`;
+  });
+}
+</script>
+</html>

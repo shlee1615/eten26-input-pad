@@ -1,0 +1,16 @@
+內建字型與授權
+
+字嗨注音宋體、字嗨注音楷書、字嗨注音黑體：But Ko／ButTaiwan
+原始專案：https://github.com/ButTaiwan/bpmfvs
+注音 IVS 規格：https://github.com/ButTaiwan/bpmfvs#readme
+
+本工具使用與 McBopomofoWeb 示範頁相同的 WOFF2 檔案；未修改字型。
+檔案來源：https://github.com/oikasu1/fonts
+對應的原始字型、WOFF2 與完整授權均可由該來源取得。
+各字型授權與著作權資訊保留在本資料夾的 LICENSE／License 檔案。
+
+澳聲通拼音庫楷－繁：ToneOZ
+來源：https://github.com/oikasu1/fonts/blob/main/ToneOZ-Pinyin-Kai-Traditional.woff2
+授權：https://github.com/oikasu1/fonts/blob/main/ToneOZ-Pinyin-Kai-Traditional-License.txt
+
+所有字型僅在工具內由本機載入，不安裝至 macOS 字型目錄。

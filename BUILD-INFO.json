@@ -1,0 +1,21 @@
+{
+  "version": "1.3.3",
+  "build": "8",
+  "platform": "macOS 26+",
+  "architecture": "arm64",
+  "tested_on": "macOS 26.4",
+  "signing": "ad-hoc; not notarized",
+  "engine": {
+    "name": "McBopomofoWeb",
+    "version": "2.1.0",
+    "commit": "e7bfa5547b92e08265bff2b23ecf0ada832d9270",
+    "bundle_sha256": "41d7f21013f16a894acafbb6880d9b0d7c803f49b8d7b425d3d9938594b35882"
+  },
+  "validation": {
+    "javascript_tests": 59,
+    "delivery_scenarios": 17,
+    "field_policy_checks": 12,
+    "settings_store": "passed",
+    "actual_operation": "confirmed by user"
+  }
+}

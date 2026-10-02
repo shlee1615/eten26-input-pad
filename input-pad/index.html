@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>倚天26輸入便箋</title>
+  <link rel="stylesheet" href="pad.css">
+  <link rel="stylesheet" href="fonts.css">
+  <script defer src="bundle.js"></script>
+  <script defer src="pad-settings.js"></script>
+  <script defer src="pad-core.js"></script>
+  <script defer src="return-ui.js"></script>
+  <script defer src="pad.js"></script>
+</head>
+<body>
+  <header>
+    <strong><span id="layout-name" class="layout-name">倚天26</span> <span id="script-name">繁體</span></strong>
+    <nav aria-label="便箋工具">
+      <button id="mode" aria-pressed="false" title="切換中文或英文">中文</button>
+      <button id="pin" aria-pressed="false" title="讓小視窗保持在最上層">置頂</button>
+      <button id="settings" title="開啟輸入設定（⌘ ,）">設定</button>
+      <button id="clear" title="清空便箋">清空</button>
+      <button id="copy" class="primary" title="複製全部文字（⌘ Enter）">複製</button>
+    </nav>
+  </header>
+  <div class="return-row" role="group" aria-label="送回原程式">
+    <select id="return-mode" aria-label="送回模式" title="切換後立即記住選擇">
+      <option value="copy_return">複製並返回</option>
+      <option value="auto_paste">一鍵送回原欄位</option>
+    </select>
+    <span id="return-target">先點好目標欄位</span>
+    <button id="return-authorize" hidden title="開啟輔助使用授權設定">授權</button>
+    <button id="return-send" class="primary" disabled>複製並返回</button>
+  </div>
+  <div id="return-hint" class="return-hint"></div>
+  <textarea id="editor" aria-label="倚天26文字輸入區" placeholder="在這裡用倚天26鍵打字…" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+  <section id="composition" aria-label="正在組字" aria-live="polite"></section>
+  <section id="choices" aria-label="候選字"></section>
+  <footer>
+    <span id="status" role="status">Mac 選 ABC · Windows 選英文</span>
+    <span id="help">空白一聲 · ↓ 選字 · Enter 確定</span>
+  </footer>
+</body>
+</html>

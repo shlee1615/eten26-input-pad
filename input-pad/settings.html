@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'; connect-src 'none'">
+  <title>輸入設定</title>
+  <link rel="stylesheet" href="settings.css">
+  <script defer src="pad-settings.js"></script>
+  <script defer src="settings.js"></script>
+</head>
+<body>
+  <header><h1>輸入設定</h1><p>設定及詞庫儲存在這台 Mac，下次開啟會繼續使用。</p></header>
+  <nav aria-label="設定分類">
+    <button data-tab="basic" aria-pressed="true">基本</button>
+    <button data-tab="advanced" aria-pressed="false">進階</button>
+    <button data-tab="phrases" aria-pressed="false">自訂詞庫</button>
+  </nav>
+  <main>
+    <section id="basic" aria-label="基本設定">
+      <label class="row">模式<select name="trad_mode"><option value="false">小麥注音（自動選字）</option><option value="true">傳統注音（手動選字）</option></select></label>
+      <label class="row">簡繁轉換<select name="chinese_conversion"><option value="false">繁體</option><option value="true">簡體</option></select></label>
+      <label class="row">標點符號<select name="half_width_punctuation"><option value="false">全形</option><option value="true">半形</option></select></label>
+      <label class="row">鍵盤配置<select name="layout"></select></label>
+      <label class="row">選字按鍵<select name="candidate_keys"><option>123456789</option><option>asdfghjkl</option><option>asdfzxcvb</option></select></label>
+      <label class="row">選字鍵數量<select name="candidate_keys_count"><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option></select></label>
+      <label class="row">選字時移動<select name="moving_cursor_option"><option value="0">不移動游標</option><option value="1">JK 按鍵移動游標</option><option value="2">HL 按鍵移動游標</option></select></label>
+      <label class="row">選字模式<select name="select_phrase"><option value="before_cursor">選游標前的字詞（像漢音）</option><option value="after_cursor">選游標後的字詞（像微軟新注音）</option></select></label>
+      <label class="check"><input name="move_cursor" type="checkbox">選字後自動移動游標（選游標後字詞時）</label>
+    </section>
+    <section id="advanced" aria-label="進階設定" hidden>
+      <label class="check"><input name="bopomofo_font_annotation_support_enabled" type="checkbox">使用注音字體支援</label>
+      <label class="row">注音字體<select name="bpmf_font"></select></label>
+      <p class="note">字型已內建，可離線使用。啟用後文字會含讀音標記；貼到其他程式時，需搭配相容字型才能顯示注音。</p>
+      <label class="row">Shift＋字母<select name="letter_mode"><option value="upper">輸入大寫字母</option><option value="lower">輸入小寫字母</option></select></label>
+      <label class="row">Ctrl＋Enter<select name="ctrl_enter_option"><option value="0">不使用</option><option value="1">輸入注音符號</option><option value="2">輸入 HTML Ruby</option><option value="3">輸入台灣點字 Unicode</option><option value="5">輸入台灣點字 ASCII</option><option value="4">輸入漢語拼音</option></select></label>
+      <label class="check"><input name="esc_key_clear_entire_buffer" type="checkbox">ESC 按鍵清除輸入緩衝區</label>
+      <label class="check"><input name="allow_changing_prior_tone" type="checkbox">輸入聲調後仍可改變聲調（僅標準配置）</label>
+      <label class="check"><input name="repeated_punctuation_choose_candidate" type="checkbox">重複按標點符號，選擇下一個候選標點</label>
+      <label class="check"><input name="prefer_longer_phrases" type="checkbox">增加長詞的權重</label>
+      <label class="check"><input name="beep_on_error" type="checkbox">錯誤時發出嗶聲</label>
+    </section>
+    <section id="phrases" role="group" aria-label="自訂詞與排除詞編輯" hidden>
+      <p class="note">每行輸入「詞語 空格 注音」，音節以 - 分隔；# 開頭為註解。可先在便箋打中文字，再複製貼到此處。</p>
+      <label class="table-label" for="user_phrases">自訂詞</label>
+      <textarea id="user_phrases" name="user_phrases" spellcheck="false" placeholder="你好 ㄋㄧˇ-ㄏㄠˇ"></textarea>
+      <label class="table-label" for="excluded_phrases">排除的詞彙</label>
+      <textarea id="excluded_phrases" name="excluded_phrases" spellcheck="false" placeholder="不想出現的詞語及其注音，每行一筆"></textarea>
+      <p class="note">輸入時也可用 Shift＋方向鍵選取字詞，再按 Enter 加詞；候選字上按 + 或 - 可調整自訂／排除詞。</p>
+    </section>
+  </main>
+  <footer>
+    <div id="status" role="status" aria-live="polite">尚未修改</div>
+    <div class="actions"><button id="reset">還原預設設定</button><span></span><button id="close">完成</button><button id="save" class="primary">儲存設定</button></div>
+  </footer>
+</body>
+</html>
