@@ -144,4 +144,59 @@ for mode in [DeliveryMode.copyReturn, .automatic] {
         env.onActivate = nil
     }
 }
+for mode: DeliveryMode in [.automatic, .enterPaste] {
+    scenario { env, flow, results, _ in
+        env.authorized = false
+        flow.begin(text: "第三模式", mode: mode, destination: destination)
+        check(results() == [.permissionRequired] && env.pastes == 0 && env.activations == 0, "both automatic modes require explicit AX permission")
+    }
+    scenario { env, flow, results, advance in
+        flow.begin(text: "第三模式", mode: mode, destination: destination)
+        env.foreground = 2; flow.poll(); flow.poll()
+        check(env.pastes == 1, "both automatic modes post exactly one paste")
+        advance(2); flow.poll(); flow.poll()
+        check(results() == [.pasteUnconfirmed] && env.pastes == 1 && !flow.isBusy, "uncertain paste must finish without a retry")
+    }
+    scenario { env, flow, results, _ in
+        flow.begin(text: "第三模式", mode: mode, destination: destination)
+        env.foreground = 2; flow.poll(); env.verification = .verified; flow.poll()
+        check(results() == [.pasted] && env.pastes == 1, "both automatic modes verify the same way")
+    }
+}
+scenario { env, flow, results, advance in
+    env.restoration = .pending
+    flow.begin(text: "lost foreground", mode: .enterPaste, destination: destination)
+    env.foreground = 2; flow.poll()
+    env.foreground = nil; advance(2); flow.poll()
+    check(results() == [.caretUnavailable] && !flow.isBusy && env.pastes == 0, "restoration timeout must run even when foreground PID is unavailable")
+}
+scenario { env, flow, results, _ in
+    env.activationWorks = false
+    env.onActivate = { flow.activated(processIdentifier: 3) }
+    flow.begin(text: "reentrant activation", mode: .enterPaste, destination: destination)
+    check(results() == [.focusChanged] && !flow.isBusy, "failed activate returning after a callback cannot report a second terminal result")
+    env.onActivate = nil
+}
+scenario { env, flow, results, _ in
+    env.pasteAvailable = false
+    env.onPaste = { flow.activated(processIdentifier: 3) }
+    flow.begin(text: "reentrant paste", mode: .enterPaste, destination: destination)
+    env.foreground = 2; flow.poll()
+    check(results() == [.pasteUnconfirmed] && !flow.isBusy && env.pastes == 1, "failed paste returning after a callback cannot report a second terminal result")
+    env.onPaste = nil
+}
+scenario { env, flow, results, _ in
+    env.pasteAvailable = false
+    env.onPaste = {
+        env.onPaste = nil
+        flow.activated(processIdentifier: 3)
+        env.foreground = 1
+        flow.begin(text: "next operation, same destination", mode: .enterPaste, destination: destination)
+    }
+    flow.begin(text: "old operation", mode: .enterPaste, destination: destination)
+    env.foreground = 2; flow.poll()
+    check(results() == [.pasteUnconfirmed] && flow.isBusy, "a returning old API failure cannot finish a newer operation with the same destination")
+    env.pasteAvailable = true; env.foreground = 2; flow.poll(); env.verification = .verified; flow.poll()
+    check(results() == [.pasteUnconfirmed, .pasted] && env.pastes == 2, "the new operation remains independent and posts exactly once")
+}
 print("Delivery flow: \(count) scenarios passed")

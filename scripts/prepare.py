@@ -33,9 +33,11 @@ def main():
         dest.write_bytes(content)
 
     upstream = ROOT / "vendor" / "McBopomofoWeb"
-    required = [upstream / "output/example/bundle.js", upstream / "output/example/bundle.js.LICENSE.txt", upstream / "LICENSE.txt"]
+    required = [upstream / "src/McBopomofo/InputController.ts", upstream / "package.json", upstream / "output/example/bundle.js", upstream / "output/example/bundle.js.LICENSE.txt", upstream / "LICENSE.txt"]
     required += [upstream / "node_modules" / name / "LICENSE" for name in ("chinese_convert", "dayjs", "lodash", "lunar-typescript", "lz-string")]
-    if all(path.is_file() for path in required):
+    patch = ROOT / "patches" / "engine-state-kind.patch"
+    patched = (upstream / "src/McBopomofo/InputController.ts").is_file() and "public getStateKind(): string" in (upstream / "src/McBopomofo/InputController.ts").read_text()
+    if all(path.is_file() for path in required) and patched:
         print("Bundled engine and licenses present; ready to build.")
         return
     upstream.parent.mkdir(parents=True, exist_ok=True)
@@ -47,6 +49,10 @@ def main():
         run("git", "remote", "add", "origin", "https://github.com/openvanilla/McBopomofoWeb.git", cwd=upstream)
     run("git", "fetch", "--depth=1", "origin", ENGINE_COMMIT, cwd=upstream)
     run("git", "checkout", "--detach", ENGINE_COMMIT, cwd=upstream)
+    reverse = subprocess.run(["git", "apply", "--reverse", "--check", str(patch)], cwd=upstream, capture_output=True)
+    if reverse.returncode != 0:
+        run("git", "apply", "--check", str(patch), cwd=upstream)
+        run("git", "apply", str(patch), cwd=upstream)
     run("npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund", cwd=upstream)
     run("npm", "run", "build", cwd=upstream)
     print("Pinned dependencies ready.")

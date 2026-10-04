@@ -28,6 +28,7 @@
     <select id="return-mode" aria-label="送回模式" title="切換後立即記住選擇">
       <option value="copy_return">複製並返回</option>
       <option value="auto_paste">一鍵送回原欄位</option>
+      <option value="enter_paste">Enter 直接貼回</option>
     </select>
     <span id="return-target">先點好目標欄位</span>
     <button id="return-authorize" hidden title="開啟輔助使用授權設定">授權</button>
@@ -39,6 +40,7 @@
   <section id="choices" aria-label="候選字"></section>
   <footer>
     <span id="status" role="status">Mac 選 ABC · Windows 選英文</span>
+    <button id="restore-sent" hidden title="將上次貼回的文字放回便箋，不會再次貼出">復原上次貼回</button>
     <span id="help">空白一聲 · ↓ 選字 · Enter 確定</span>
   </footer>
 </body>

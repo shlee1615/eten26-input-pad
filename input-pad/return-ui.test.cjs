@@ -56,6 +56,8 @@ test("empty text unlocks immediately and a completed native response also unlock
   pending.ui.load({ mode: "copy_return", targetName: "文字編輯" });
   pending.ui.submit();
   pending.ui.load({ mode: "copy_return", targetName: "文字編輯", busy: false });
+  assert.equal(pending.elements["return-send"].disabled, true, "idle state alone cannot unlock the pending operation");
+  pending.ui.release();
   assert.equal(pending.elements["return-send"].disabled, false);
 });
 

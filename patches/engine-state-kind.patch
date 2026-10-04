@@ -1,0 +1,23 @@
+diff --git a/src/McBopomofo/InputController.ts b/src/McBopomofo/InputController.ts
+index 347f179..dd4ffc9 100644
+--- a/src/McBopomofo/InputController.ts
++++ b/src/McBopomofo/InputController.ts
+@@ -182,6 +182,18 @@ export class InputController {
+     return this.state_;
+   }
+ 
++  /** Stable embedding API: names remain valid in the production/minified bundle. */
++  public getStateKind(): string {
++    const state = this.state_;
++    if (state instanceof Empty || state instanceof EmptyIgnoringPrevious) return "empty";
++    if (state instanceof Committing) return "committing";
++    if (state instanceof Marking) return "marking";
++    if (state instanceof ChoosingCandidate || state instanceof IrohaCandidate) return "choosing";
++    if (state instanceof Inputting) return "inputting";
++    // Feature, date, dictionary and numeric inputs retain their own Enter actions.
++    return "other";
++  }
++
+   private state_: InputState = new Empty();
+   private lm_: WebLanguageModel;
+   private mcBopomofoLm_: WebLanguageModel;

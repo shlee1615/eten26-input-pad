@@ -41,7 +41,11 @@ final class ReturnController: DeliveryEnvironment {
     private var captureRetry: Timer?
     private(set) var mode: DeliveryMode
     var stateChanged: (() -> Void)?
-    var resultReceived: ((DeliveryResult, String) -> Void)?
+    var resultReceived: ((String, DeliveryResult, String) -> Void)?
+    private var activeOperationID: String?
+    private var recentResults: [String: (DeliveryResult, String)] = [:]
+    private var resultOrder: [String] = []
+    private var lastResult: [String: Any]?
     private lazy var flow = DeliveryFlow(environment: self) { [weak self] result in self?.finished(result) }
     var ownProcessIdentifier: Int32 { ProcessInfo.processInfo.processIdentifier }
     var isBusy: Bool { flow.isBusy }
@@ -116,12 +120,27 @@ final class ReturnController: DeliveryEnvironment {
     }
 
     var state: [String: Any] {
-        ["mode": mode.rawValue, "targetName": origin?.destination.name ?? "", "permissionGranted": AXIsProcessTrusted(),
+        var value: [String: Any] = ["mode": mode.rawValue, "targetName": origin?.destination.name ?? "", "permissionGranted": AXIsProcessTrusted(),
          "hasCaret": origin?.caret != nil, "busy": isBusy]
+        if let lastResult { value["lastResult"] = lastResult }
+        return value
     }
 
-    func send(_ text: String) {
-        guard !text.isEmpty, !isBusy else { stateChanged?(); return }
+    func send(_ text: String, operationID: String) {
+        if activeOperationID == operationID { stateChanged?(); return }
+        if let (result, message) = recentResults[operationID] {
+            resultReceived?(operationID, result, message)
+            stateChanged?()
+            return
+        }
+        guard !text.isEmpty, !isBusy, activeOperationID == nil else {
+            let message = "正在處理其他送回操作，文字仍保留。"
+            recordResult(operationID, result: .rejected, message: message)
+            resultReceived?(operationID, .rejected, message)
+            stateChanged?()
+            return
+        }
+        activeOperationID = operationID
         restorationID = nil
         flow.begin(text: text, mode: mode, destination: origin?.destination)
         stateChanged?()
@@ -135,6 +154,16 @@ final class ReturnController: DeliveryEnvironment {
             pollTimer = timer
             RunLoop.main.add(timer, forMode: .common)
         }
+    }
+
+    func queryDelivery(_ operationID: String) {
+        if let (result, message) = recentResults[operationID] {
+            resultReceived?(operationID, result, message)
+        } else if activeOperationID != operationID && !isBusy {
+            // Missing receipt is not proof of paste failure. Keep the draft.
+            resultReceived?(operationID, .pasteUnconfirmed, "找不到貼回結果；請先查看原欄位，文字仍保留。")
+        }
+        stateChanged?()
     }
 
     // Called only by the user-facing authorization button, never at startup.
@@ -452,8 +481,20 @@ final class ReturnController: DeliveryEnvironment {
         case .pasted: message = "已貼入原欄位 · 便箋文字已保留。"
         case .pasteUnavailable: message = "已複製；無法自動貼上，請手動貼上。"
         case .pasteUnconfirmed: message = "已送出貼上指令；請先查看原欄位，尚未確認結果。"
+        case .rejected: message = "送回未受理，文字仍保留。"
         }
-        resultReceived?(result, message)
+        if let operationID = activeOperationID {
+            activeOperationID = nil
+            recordResult(operationID, result: result, message: message)
+            resultReceived?(operationID, result, message)
+        }
         stateChanged?()
+    }
+
+    private func recordResult(_ operationID: String, result: DeliveryResult, message: String) {
+        recentResults[operationID] = (result, message)
+        resultOrder.append(operationID)
+        if resultOrder.count > 128 { recentResults.removeValue(forKey: resultOrder.removeFirst()) }
+        lastResult = ["operationID": operationID, "status": result.rawValue, "message": message]
     }
 }

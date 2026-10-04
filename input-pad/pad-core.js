@@ -8,17 +8,23 @@
       this.editor = editor;
       this.suppressCommit = false;
       this.hasComposition = false;
+      this.revision = 0;
+      this.commitCount = 0;
+      this.errorCount = 0;
+      this.lastSent = null;
       this.history = [this.snapshot()];
       this.historyIndex = 0;
       this.controller = new Engine({
-        reset: () => { this.hasComposition = false; render(null); },
+        reset: () => { if (this.hasComposition) this.revision++; this.hasComposition = false; render(null); },
         update: (state) => {
           const next = JSON.parse(state);
           this.hasComposition = next.composingBuffer.some((segment) => segment.text.length > 0);
+          if (this.hasComposition) this.revision++;
           render(next);
         },
         commitString: (text) => {
           if (this.suppressCommit) return;
+          if (text.length) this.commitCount++;
           this.saveSelection();
           const start = editor.selectionStart;
           const end = editor.selectionEnd;
@@ -29,7 +35,46 @@
       });
       this.controller.setLanguageCode("zh-TW");
       this.settings = settingsAPI.applyControllerSettings(this.controller, settings);
-      this.controller.setOnError(onError);
+      this.controller.setOnError(() => { this.errorCount++; onError(); });
+    }
+
+    handleKey(event) {
+      const before = this.controller.getStateKind();
+      const commits = this.commitCount, errors = this.errorCount;
+      const handled = this.controller.keyEvent(event);
+      return { before, after: this.controller.getStateKind(), handled,
+        committed: this.commitCount > commits, error: this.errorCount > errors };
+    }
+
+    confirmForDelivery(event, english = false) {
+      if (english) return !this.hasComposition && this.editor.value.length > 0;
+      const result = this.handleKey(event);
+      if (result.error || this.hasComposition) return false;
+      if (["empty", "committing"].includes(result.before)) return this.editor.value.length > 0;
+      return result.before === "inputting" && result.handled && result.committed
+        && ["committing", "empty"].includes(result.after) && this.editor.value.length > 0;
+    }
+
+    deliverySnapshot() {
+      return { text: this.editor.value, revision: this.revision };
+    }
+
+    acknowledgeDelivery(snapshot) {
+      this.lastSent = snapshot.text;
+      if (snapshot.revision !== this.revision || snapshot.text !== this.editor.value || this.hasComposition) return false;
+      this.saveSelection();
+      this.editor.value = "";
+      this.editor.setSelectionRange(0, 0);
+      this.checkpoint();
+      return true;
+    }
+
+    restoreLastSent() {
+      if (!this.lastSent || this.editor.value || this.hasComposition) return false;
+      this.editor.value = this.lastSent;
+      this.editor.setSelectionRange(this.lastSent.length, this.lastSent.length);
+      this.checkpoint();
+      return true;
     }
 
     applySettings(settings) {
@@ -76,6 +121,7 @@
 
     checkpoint() {
       if (this.history[this.historyIndex].value === this.editor.value) return;
+      this.revision++;
       this.history.splice(this.historyIndex + 1);
       this.history.push(this.snapshot());
       if (this.history.length > 200) this.history.shift();
@@ -83,6 +129,7 @@
     }
 
     restore(index) {
+      this.revision++;
       const snapshot = this.history[index];
       this.editor.value = snapshot.value;
       this.editor.setSelectionRange(snapshot.start, snapshot.end);

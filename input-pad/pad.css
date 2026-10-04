@@ -28,6 +28,14 @@ body.bpmf #composition { min-height: 38px; line-height: 38px; font-size: 24px; }
 #composition .caret { display: inline-block; height: 19px; border-left: 1px solid var(--text); vertical-align: -3px; }
 #choices { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-height: 29px; max-height: 72px; flex-shrink: 1; overflow-y: auto; }
 #choices:empty, #composition:empty { display: none; }
+/* The actual editor keeps keyboard focus in the compact mode. */
+body.enter-mode #composition { display: block; min-height: 28px; }
+body.enter-mode.bpmf #composition { min-height: 38px; }
+body.compact textarea { flex: 0 0 auto; min-height: 60px; height: 60px; padding: 7px 10px; white-space: pre; overflow-x: auto; overflow-y: hidden; }
+body.compact.bpmf textarea { min-height: 70px; height: 70px; }
+body.enter-mode #choices { flex-shrink: 0; max-height: 110px; font-size: 18px; }
+body.enter-mode.bpmf #choices { max-height: 150px; font-size: 24px; line-height: 1.6; }
+#restore-sent { padding: 2px 5px; font-size: 11px; }
 #choices button { padding: 4px 6px; }
 #choices .selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, Canvas); }
 .cap { color: var(--muted); padding-right: 4px; font-size: 11px; }

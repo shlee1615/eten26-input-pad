@@ -28,6 +28,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     private let settingsStore = SettingsStore()
     private var savedSettings: [String: Any] = [:]
     private let returnController = ReturnController()
+    private var windowMode: DeliveryMode?
+    private var programmaticSizing = false
+    private var enterBaseHeight: CGFloat = 210
+    private var lastContentSize: NSSize = .zero
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         resources = Bundle.main.resourceURL!
@@ -44,12 +48,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         window.isReleasedWhenClosed = false
         window.hidesOnDeactivate = false
         window.level = pinned ? .floating : .normal
-        if !window.setFrameUsingName("InputPadWindow") { window.center() }
-        window.setFrameAutosaveName("InputPadWindow")
+        applyWindowMode()
         installMenu()
         installStatusItem()
         returnController.stateChanged = { [weak self] in self?.syncDeliveryState() }
-        returnController.resultReceived = { [weak self] result, message in
+        returnController.resultReceived = { [weak self] operationID, result, message in
             guard let self else { return }
             let succeeded = result == .returned || result == .pasted
             if succeeded {
@@ -60,7 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             }
             let stillPinned = succeeded && self.pinned && self.window.isVisible && self.window.level == .floating
             let feedback = stillPinned ? message + " 便箋保持置頂。" : message
-            self.webView.evaluateJavaScript("window.padHost?.deliveryResult(\(self.javascriptJSON(feedback)))")
+            let receipt: [String: Any] = ["operationID": operationID, "status": result.rawValue, "message": feedback]
+            self.webView.evaluateJavaScript("window.padHost?.deliveryResult(\(self.javascriptJSON(receipt)))")
         }
         returnController.start()
         webView.loadFileURL(resources.appendingPathComponent("index.html"), allowingReadAccessTo: resources)
@@ -76,7 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     private func makeWebView() -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
-        for name in ["copy", "pin", "settings", "saveSettings", "beep", "deliver", "deliveryMode", "requestAccessibility"] {
+        for name in ["copy", "pin", "settings", "saveSettings", "beep", "deliver", "deliveryMode", "deliveryStatus", "requestAccessibility", "padLayout"] {
             configuration.userContentController.add(self, name: name)
         }
         configuration.userContentController.addUserScript(WKUserScript(
@@ -188,7 +192,65 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     }
 
     private func syncDeliveryState() {
+        applyWindowMode()
         webView.evaluateJavaScript("window.padHost?.loadDelivery(\(javascriptJSON(returnController.state)))")
+    }
+
+    private func frameName(_ mode: DeliveryMode) -> String {
+        mode == .copyReturn ? "InputPadWindow" : "InputPadWindow-" + mode.rawValue
+    }
+
+    private func applyWindowMode() {
+        let mode = returnController.mode
+        guard windowMode != mode else { return }
+        if let windowMode { window.saveFrame(usingName: frameName(windowMode)) }
+        programmaticSizing = true
+        defer { programmaticSizing = false }
+        window.setFrameAutosaveName("")
+        windowMode = mode
+        window.minSize = .zero
+        window.contentMinSize = NSSize(width: 430, height: mode == .enterPaste ? 190 : 278)
+        if !window.setFrameUsingName(frameName(mode)) {
+            window.setContentSize(NSSize(width: 480, height: mode == .enterPaste ? 210 : 278))
+            if mode == .copyReturn { window.center() }
+        }
+        if mode == .enterPaste {
+            let saved = UserDefaults.standard.double(forKey: "InputPadEnterBaseHeight")
+            enterBaseHeight = saved > 0 ? CGFloat(saved) : 210
+            if let visible = window.screen?.visibleFrame {
+                let chrome = window.frame.height - window.contentRect(forFrameRect: window.frame).height
+                enterBaseHeight = min(enterBaseHeight, visible.height - chrome)
+            }
+            resizeContentHeight(enterBaseHeight)
+        }
+        window.setFrameAutosaveName(frameName(mode))
+    }
+
+    private func resizeContentHeight(_ height: CGFloat) {
+        let desired = max(height, window.contentMinSize.height)
+        let content = window.contentRect(forFrameRect: window.frame)
+        guard abs(content.height - desired) > 1 else { return }
+        let previousSizing = programmaticSizing
+        programmaticSizing = true
+        defer { programmaticSizing = previousSizing }
+        var frame = window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: content.width, height: desired))
+        frame.origin = NSPoint(x: window.frame.minX, y: window.frame.maxY - frame.height)
+        if let visible = window.screen?.visibleFrame {
+            frame.size.height = min(frame.height, visible.height)
+            frame.origin.y = min(max(frame.origin.y, visible.minY), visible.maxY - frame.height)
+            frame.origin.x = min(max(frame.origin.x, visible.minX), max(visible.minX, visible.maxX - frame.width))
+        }
+        window.setFrame(frame, display: true)
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        guard (notification.object as? NSWindow) === window else { return }
+        let size = window.contentRect(forFrameRect: window.frame).size
+        defer { lastContentSize = size }
+        guard !programmaticSizing, windowMode == .enterPaste, abs(size.height - lastContentSize.height) > 1 else { return }
+        // User resize becomes the base height; candidate expansion does not.
+        enterBaseHeight = size.height
+        UserDefaults.standard.set(Double(enterBaseHeight), forKey: "InputPadEnterBaseHeight")
     }
 
     @objc private func sendBack() {
@@ -298,12 +360,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
             setPinned(desired)
         } else if message.name == "settings" {
             openSettings()
-        } else if message.name == "deliver", message.webView === webView, let text = message.body as? String {
-            returnController.send(text)
+        } else if message.name == "deliver", message.webView === webView, let payload = message.body as? [String: Any],
+                  let text = payload["text"] as? String, let operationID = payload["operationID"] as? String,
+                  UUID(uuidString: operationID) != nil {
+            returnController.send(text, operationID: operationID)
         } else if message.name == "deliveryMode", message.webView === webView, let value = message.body as? String {
             returnController.selectMode(value)
+        } else if message.name == "deliveryStatus", message.webView === webView, let operationID = message.body as? String,
+                  UUID(uuidString: operationID) != nil {
+            returnController.queryDelivery(operationID)
         } else if message.name == "requestAccessibility", message.webView === webView {
             returnController.requestAccessibility()
+        } else if message.name == "padLayout", message.webView === webView, returnController.mode == .enterPaste,
+                  let payload = message.body as? [String: Any], payload["mode"] as? String == "enter_paste",
+                  let compact = payload["compact"] as? Bool, let height = payload["minContentHeight"] as? Double,
+                  height.isFinite, height >= 100, height <= 1200 {
+            programmaticSizing = true
+            window.contentMinSize = NSSize(width: 430, height: CGFloat(height))
+            resizeContentHeight(max(CGFloat(height), max(enterBaseHeight, compact ? 0 : 278)))
+            programmaticSizing = false
         } else if message.name == "beep" {
             NSSound.beep()
         } else if message.name == "saveSettings", let payload = message.body as? [String: Any],
